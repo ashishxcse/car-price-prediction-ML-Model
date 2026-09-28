@@ -1,147 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
-<head xmlns="http://www.w3.org/1999/xhtml">
-    <meta charset="UTF-8">
-    <title>Car Price Predictor</title>
-    <link rel="stylesheet" href="static/css/style.css">
-    <link rel="stylesheet" type="text/css"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
-            integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
-            crossorigin="anonymous"></script>
-
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
-          integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
-
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Car Price Predictor</title>
+  <style>
+    :root { --bg:#f5f7fb; --card:#fff; --text:#1f2937; --muted:#6b7280; --border:#d1d5db; --accent:#2563eb; --err:#dc2626; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0f172a; --card:#1e293b; --text:#e5e7eb; --muted:#94a3b8; --border:#334155; --accent:#3b82f6; --err:#f87171; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:24px 16px; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    .card { max-width:560px; margin:0 auto; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; }
+    h1 { margin:0 0 4px; font-size:1.4rem; }
+    p.sub { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .full { grid-column:1 / -1; }
+    label { display:block; font-size:.85rem; font-weight:600; margin-bottom:4px; }
+    input, select { width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); font-size:.95rem; }
+    input:focus, select:focus { outline:2px solid var(--accent); border-color:transparent; }
+    button { width:100%; margin-top:20px; padding:12px; background:var(--accent); color:#fff; border:0; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    #result { margin-top:20px; padding:16px; border-radius:8px; text-align:center; display:none; }
+    #result.ok { display:block; background:var(--bg); border:1px solid var(--border); }
+    #result.ok .price { font-size:1.8rem; font-weight:700; color:var(--accent); }
+    #result.ok .label { color:var(--muted); font-size:.85rem; }
+    #result.error { display:block; color:var(--err); border:1px solid var(--err); }
+    @media (max-width:480px) { .grid { grid-template-columns:1fr; } }
+  </style>
 </head>
-<body class="bg-dark">
+<body>
+  <div class="card">
+    <h1>Car Price Predictor</h1>
+    <p class="sub">Enter the car details to get an estimated resale price.</p>
 
-<div class="container">
-    <div class="row">
-        <div class="card mt-50" style="width: 100%; height: 100%">
-            <div class="card-header" style="text-align: center">
-                <h1>Welcome to Car Price Predictor</h1>
-            </div>
-            <div class="card-body">
-                <div class="col-12" style="text-align: center">
-                    <h5>This app predicts the price of a car you want to sell. Try filling the details below: </h5>
-                </div>
-                <br>
-                <form method="post" accept-charset="utf-8" name="Modelform">
-                    <div class="col-md-10 form-group" style="text-align: center">
-                        <label><b>Select the company:</b> </label><br>
-                        <select class="selectpicker form-control" id="company" name="company" required="1"
-                                onchange="load_car_models(this.id,'car_models')">
-                            {% for company in companies %}
-                            <option value="{{ company }}">{{ company }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-10 form-group" style="text-align: center">
-                        <label><b>Select the model:</b> </label><br>
-                        <select class="selectpicker form-control" id="car_models" name="car_models" required="1">
-                        </select>
-                    </div>
-                    <div class="col-md-10 form-group" style="text-align: center">
-                        <label><b>Select Year of Purchase:</b> </label><br>
-                        <select class="selectpicker form-control" id="year" name="year" required="1">
-                            {% for year in years %}
-                            <option value="{{ year }}">{{ year }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-10 form-group" style="text-align: center">
-                        <label><b>Select the Fuel Type:</b> </label><br>
-                        <select class="selectpicker form-control" id="fuel_type" name="fuel_type" required="1">
-                            {% for fuel in fuel_types %}
-                            <option value="{{ fuel }}">{{ fuel }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-10 form-group" style="text-align: center">
-                        <label><b>Enter the Number of Kilometres that the car has travelled:</b> </label><br>
-                        <input type="text" class="form-control" id="kilo_driven" name="kilo_driven"
-                               placeholder="Enter the kilometres driven ">
-                    </div>
-                    <div class="col-md-10 form-group" style="text-align: center">
-                        <button  class="btn btn-primary form-control" onclick="send_data()">Predict Price</button>
-                    </div>
-                </form>
-                <br>
-                <div class="row">
-                    <div class="col-12" style="text-align: center">
-                        <h4><span id="prediction"></span></h4>
-                    </div>
-                </div>
-            </div>
+    <form id="form">
+      <div class="grid">
+        <div class="full">
+          <label for="Brand">Brand</label>
+          <select id="Brand" required></select>
         </div>
-    </div>
-</div>
+        <div>
+          <label for="fuel">Fuel</label>
+          <select id="fuel">
+            <option>Petrol</option><option>Diesel</option><option>CNG</option>
+          </select>
+        </div>
+        <div>
+          <label for="transmission">Transmission</label>
+          <select id="transmission">
+            <option>Manual</option><option>Automatic</option>
+          </select>
+        </div>
+        <div>
+          <label for="owner">Owner (1–4)</label>
+          <input type="number" id="owner" min="1" max="4" value="1" required>
+        </div>
+        <div>
+          <label for="car_age">Car age (years)</label>
+          <input type="number" id="car_age" min="0" max="40" placeholder="e.g. 5" required>
+        </div>
+        <div>
+          <label for="km_driven">Km driven</label>
+          <input type="number" id="km_driven" min="0" placeholder="e.g. 45000" required>
+        </div>
+        <div>
+          <label for="mileage">Mileage (kmpl)</label>
+          <input type="number" id="mileage" min="0" step="0.01" placeholder="e.g. 23.4" required>
+        </div>
+        <div class="full">
+          <label for="engine">Engine (CC)</label>
+          <input type="number" id="engine" min="0" placeholder="e.g. 1248" required>
+        </div>
+      </div>
+      <button type="submit" id="btn">Predict Price</button>
+    </form>
 
-<script>
+    <div id="result"></div>
+  </div>
 
-    function load_car_models(company_id,car_model_id)
-    {
-        var company=document.getElementById(company_id);
-        var car_model= document.getElementById(car_model_id);
-        console.log(company.value);
-        car_model.value="";
-        car_model.innerHTML="";
-        {% for company in companies %}
-            if( company.value == "{{ company }}")
-            {
-                {% for model in car_models %}
-                    {% if company in model %}
+  <script>
+    // Change this if your FastAPI runs on a different host/port
+    const API_URL = "http://127.0.0.1:8000/api/predict/";
 
-                        var newOption= document.createElement("option");
-                        newOption.value="{{ model }}";
-                        newOption.innerHTML="{{ model }}";
-                        car_model.options.add(newOption);
-                    {% endif %}
-                {% endfor %}
-            }
-        {% endfor %}
-    }
+    // Same brands the model saw during training
+    const BRANDS = ["Ambassador","Ashok","Audi","BMW","Chevrolet","Daewoo","Datsun","Fiat","Force","Ford","Honda","Hyundai","Isuzu","Jaguar","Jeep","Kia","Land","Lexus","MG","Mahindra","Maruti","Mercedes-Benz","Mitsubishi","Nissan","Opel","Renault","Skoda","Tata","Toyota","Volkswagen","Volvo"];
+    const brandSel = document.getElementById("Brand");
+    BRANDS.forEach(b => brandSel.add(new Option(b, b)));
+    brandSel.value = "Maruti";
 
-    function form_handler(event) {
-        event.preventDefault(); // Don't submit the form normally
-    }
-    function send_data()
-    {
-        document.querySelector('form').addEventListener("submit",form_handler);
+    const form = document.getElementById("form");
+    const btn = document.getElementById("btn");
+    const result = document.getElementById("result");
 
-        var fd=new FormData(document.querySelector('form'));
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.textContent = "Predicting...";
+      result.className = "";
 
-        var xhr= new XMLHttpRequest({mozSystem: true});
+      const val = id => document.getElementById(id).value;
+      const payload = {
+        Brand: val("Brand"),
+        fuel: val("fuel"),
+        transmission: val("transmission"),
+        owner: parseInt(val("owner")),
+        km_driven: parseInt(val("km_driven")),
+        mileage: parseFloat(val("mileage")),
+        engine: parseFloat(val("engine")),
+        car_age: parseInt(val("car_age")),
+      };
 
-        xhr.open('POST','/predict',true);
-        document.getElementById('prediction').innerHTML="Wait! Predicting Price.....";
-        xhr.onreadystatechange = function(){
-            if(xhr.readyState == XMLHttpRequest.DONE){
-                document.getElementById('prediction').innerHTML="Prediction: ₹"+xhr.responseText;
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
 
-            }
-        };
-
-        xhr.onload= function(){};
-
-        xhr.send(fd);
-    }
-</script>
-
-
-<!-- jQuery first, then Popper.js, then Bootstrap JS -->
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
-        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
-        crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
-        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
-        crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"
-        integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI"
-        crossorigin="anonymous"></script>
+        if (!res.ok) {
+          result.className = "error";
+          result.textContent = "Error: " + JSON.stringify(data.detail || data);
+        } else {
+          result.className = "ok";
+          result.innerHTML =
+            '<div class="label">Estimated price</div>' +
+            '<div class="price">₹' + Math.round(data.predicted_price).toLocaleString("en-IN") + '</div>';
+        }
+      } catch (err) {
+        result.className = "error";
+        result.textContent = "Could not reach the server. Is FastAPI running on " + API_URL + " ?";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Predict Price";
+      }
+    });
+  </script>
 </body>
 </html>
